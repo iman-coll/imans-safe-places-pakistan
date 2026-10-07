@@ -22,6 +22,7 @@ import {
   type Road,
   type RoadType,
 } from "@/lib/roads";
+import { subAreas, searchSubAreas, type SubArea } from "@/lib/subAreas";
 import { cities } from "@/lib/data";
 
 const iconMap: Record<string, typeof RoadIcon> = {
@@ -53,6 +54,8 @@ export default function RoadDirectory() {
   const [cityFilter, setCityFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [selectedRoad, setSelectedRoad] = useState<Road | null>(null);
+  const [selectedSubArea, setSelectedSubArea] = useState<SubArea | null>(null);
+  const [directoryMode, setDirectoryMode] = useState<"roads" | "areas">("roads");
 
   const filteredRoads = useMemo(() => {
     let result = searchRoads(query);
@@ -61,8 +64,14 @@ export default function RoadDirectory() {
     return result;
   }, [query, cityFilter, typeFilter]);
 
+  const filteredSubAreas = useMemo(() => {
+    let result = searchSubAreas(query);
+    if (cityFilter) result = result.filter((area) => area.city === cityFilter);
+    return result;
+  }, [query, cityFilter]);
+
   const cityOptions = useMemo(() => {
-    const citySet = new Set(roads.map((r) => r.city));
+    const citySet = new Set([...roads.map((r) => r.city), ...subAreas.map((area) => area.city)]);
     return Array.from(citySet).sort();
   }, []);
 
@@ -87,6 +96,20 @@ export default function RoadDirectory() {
         </div>
 
         <div className="flex flex-wrap gap-2">
+          <div className="flex rounded-lg border border-slate-700 bg-slate-900 p-0.5">
+            <button
+              onClick={() => setDirectoryMode("roads")}
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${directoryMode === "roads" ? "bg-sky-500/15 text-sky-300" : "text-slate-500 hover:text-slate-300"}`}
+            >
+              Roads & Junctions
+            </button>
+            <button
+              onClick={() => setDirectoryMode("areas")}
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${directoryMode === "areas" ? "bg-emerald-500/15 text-emerald-300" : "text-slate-500 hover:text-slate-300"}`}
+            >
+              Sub-areas
+            </button>
+          </div>
           <select
             value={cityFilter}
             onChange={(e) => setCityFilter(e.target.value)}
@@ -97,23 +120,26 @@ export default function RoadDirectory() {
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500/60"
-          >
-            <option value="">All Types</option>
-            {typeOptions.map((t) => (
-              <option key={t} value={t}>{roadTypeMeta[t].label}</option>
-            ))}
-          </select>
+          {directoryMode === "roads" && (
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500/60"
+            >
+              <option value="">All Types</option>
+              {typeOptions.map((t) => (
+                <option key={t} value={t}>{roadTypeMeta[t].label}</option>
+              ))}
+            </select>
+          )}
           <div className="ml-auto text-xs text-slate-500 self-center">
-            {filteredRoads.length} road{filteredRoads.length !== 1 ? "s" : ""}
+            {directoryMode === "roads" ? `${filteredRoads.length} road${filteredRoads.length !== 1 ? "s" : ""}` : `${filteredSubAreas.length} sub-area${filteredSubAreas.length !== 1 ? "s" : ""}`}
           </div>
         </div>
       </div>
 
       {/* Results grid */}
+      {directoryMode === "roads" ? (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         {filteredRoads.map((road) => {
           const meta = roadTypeMeta[road.type];
@@ -156,11 +182,37 @@ export default function RoadDirectory() {
           );
         })}
       </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {filteredSubAreas.map((area) => (
+            <button
+              key={area.id}
+              onClick={() => setSelectedSubArea(area)}
+              className="text-left bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/50 hover:border-emerald-500/30 rounded-xl p-3.5 transition-all"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-emerald-500/10">
+                  <MapPin className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold text-slate-100 truncate">{area.name}</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">{area.urduName} · {area.city}</div>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full border border-emerald-500/30 text-emerald-300">Sub-area</span>
+                    <span className={`text-xs font-bold ${safetyColor(area.safetyScore)}`}>{area.safetyScore}/100</span>
+                  </div>
+                </div>
+              </div>
+              <div className="text-[10px] text-slate-500 mt-2 line-clamp-2">{area.description}</div>
+            </button>
+          ))}
+        </div>
+      )}
 
-      {filteredRoads.length === 0 && (
+      {((directoryMode === "roads" && filteredRoads.length === 0) || (directoryMode === "areas" && filteredSubAreas.length === 0)) && (
         <div className="text-center py-10 text-slate-500">
           <Search className="w-8 h-8 mx-auto mb-2 opacity-40" />
-          <p className="text-sm">No roads found. Try a different search.</p>
+          <p className="text-sm">No {directoryMode === "roads" ? "roads" : "sub-areas"} found. Try a different search.</p>
         </div>
       )}
 
@@ -168,6 +220,42 @@ export default function RoadDirectory() {
       {selectedRoad && (
         <RoadDetailModal road={selectedRoad} onClose={() => setSelectedRoad(null)} />
       )}
+      {selectedSubArea && (
+        <SubAreaDetailModal area={selectedSubArea} onClose={() => setSelectedSubArea(null)} />
+      )}
+    </div>
+  );
+}
+
+function SubAreaDetailModal({ area, onClose }: { area: SubArea; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+      <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-800 flex items-start justify-between">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-emerald-500/10">
+              <MapPin className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-100">{area.name}</h2>
+              <div className="text-xs text-slate-400 mt-0.5">{area.urduName} · {area.city}</div>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors"><span className="text-lg leading-none">×</span></button>
+        </div>
+        <div className="px-5 py-4 space-y-4">
+          <div className={`rounded-xl border p-3.5 ${safetyBg(area.safetyScore)}`}>
+            <div className="flex items-center justify-between mb-1.5"><span className="text-xs font-medium text-slate-300 uppercase tracking-wide">Safety Score</span><span className={`text-xl font-bold ${safetyColor(area.safetyScore)}`}>{area.safetyScore}/100</span></div>
+            <div className="h-2 bg-slate-700/40 rounded-full overflow-hidden"><div className={`h-full rounded-full ${area.safetyScore >= 75 ? "bg-green-500" : area.safetyScore >= 55 ? "bg-amber-500" : "bg-red-500"}`} style={{ width: `${area.safetyScore}%` }} /></div>
+          </div>
+          <p className="text-sm text-slate-300 leading-relaxed">{area.description}</p>
+          {area.parentArea && <div className="text-xs text-slate-400">Mapped near <span className="text-emerald-300 font-medium">{area.parentArea}</span></div>}
+          <div className="flex items-center gap-2 text-xs text-slate-400"><Clock className="w-4 h-4 text-slate-500" />{area.timeRisk === "both" ? "Review conditions at all hours" : area.timeRisk === "night" ? "Higher risk at night" : "Prefer daytime travel"}</div>
+          {area.nativeName && <div className="text-xs text-slate-400">Locally called: <span className="text-amber-300 font-medium">{area.nativeName}</span></div>}
+          {area.safetyScore < 50 && <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2.5"><AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" /><p className="text-xs text-red-300">Use a main road, travel in daylight, and check fresh community reports before entering this area.</p></div>}
+          {area.safetyScore >= 75 && <div className="flex items-start gap-2 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2.5"><Shield className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" /><p className="text-xs text-green-300">This area is currently marked as a safer option for families and visitors.</p></div>}
+        </div>
+      </div>
     </div>
   );
 }

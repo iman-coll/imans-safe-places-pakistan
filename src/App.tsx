@@ -20,6 +20,7 @@ import EmergencyPanel from "@/components/EmergencyPanel";
 import RoadDirectory from "@/components/RoadDirectory";
 import { cities, incidents, incidentTypeMeta, type SafetyIncident } from "@/lib/data";
 import { roads } from "@/lib/roads";
+import { subAreas } from "@/lib/subAreas";
 
 type Tab = "map" | "route" | "roads" | "reports";
 
@@ -133,6 +134,12 @@ export default function App() {
             value={String(roads.length)}
             color="text-amber-400 bg-amber-500/10"
           />
+          <StatCard
+            icon={<Navigation className="w-4 h-4" />}
+            label="Sub-areas"
+            value={String(subAreas.length)}
+            color="text-emerald-400 bg-emerald-500/10"
+          />
         </div>
 
         {/* Map tab */}
@@ -242,7 +249,7 @@ export default function App() {
                 <Waypoints className="w-5 h-5 text-amber-400" /> Pakistan Road Directory
               </h2>
               <p className="text-sm text-slate-400 mt-0.5">
-                Search every mapped road, highway, bridge, chowk, flyover, and U-turn with safety scores and native names.
+                Search mapped roads, bridges, chowks, U-turns, and neighborhood sub-areas across Pakistan with safety scores and local names.
               </p>
             </div>
             <RoadDirectory />
