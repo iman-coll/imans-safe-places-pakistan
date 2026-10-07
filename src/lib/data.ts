@@ -173,6 +173,78 @@ export const cities: City[] = [
     summary:
       "Capital of Azad Kashmir. Very low street crime. Main risks are landslide-prone roads during monsoon.",
   },
+  {
+    id: "gwadar",
+    name: "Gwadar",
+    urduName: "گواردر",
+    province: "Balochistan",
+    x: 15,
+    y: 55,
+    safetyScore: 67,
+    population: "0.1M",
+    summary:
+      "Port city on the Makran coast. Developing fast. Marine Drive and port area are safe; avoid isolated coastal roads after dark.",
+  },
+  {
+    id: "sialkot",
+    name: "Sialkot",
+    urduName: "سیالکوٹ",
+    province: "Punjab",
+    x: 58,
+    y: 35,
+    safetyScore: 75,
+    population: "0.7M",
+    summary:
+      "Export hub known for sports goods and leather. Cantt and Paris Road are safe; old city areas need basic caution at night.",
+  },
+  {
+    id: "bahawalpur",
+    name: "Bahawalpur",
+    urduName: "بہاولپور",
+    province: "Punjab",
+    x: 43,
+    y: 48,
+    safetyScore: 73,
+    population: "0.8M",
+    summary:
+      "Former princely state. Cantt and Model Town are well-monitored. Cholistan desert safaris require guided tours.",
+  },
+  {
+    id: "abbottabad",
+    name: "Abbottabad",
+    urduName: "ایبٹ آباد",
+    province: "Khyber Pakhtunkhwa",
+    x: 58,
+    y: 24,
+    safetyScore: 79,
+    population: "0.2M",
+    summary:
+      "Hill city with cool climate. Cantt and Supply Bazaar are safe. Mountain roads need caution in winter.",
+  },
+  {
+    id: "skardu",
+    name: "Skardu",
+    urduName: "سکردو",
+    province: "Gilgit-Baltistan",
+    x: 63,
+    y: 12,
+    safetyScore: 83,
+    population: "0.1M",
+    summary:
+      "Gateway to Karakoram peaks. Extremely low crime. Weather and road conditions are the primary concerns.",
+  },
+  {
+    id: "mingora",
+    name: "Mingora (Swat)",
+    urduName: "مینگورہ (سوات)",
+    province: "Khyber Pakhtunkhwa",
+    x: 53,
+    y: 24,
+    safetyScore: 71,
+    population: "0.3M",
+    summary:
+      "Main city of Swat Valley. Restored tourism. Saidu Sharif and Fizagat are safe; check security updates for upper valley.",
+  },
 ];
 
 export const incidents: SafetyIncident[] = [

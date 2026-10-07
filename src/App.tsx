@@ -177,7 +177,7 @@ export default function App() {
               </div>
 
               {/* Legend */}
-              <div className="flex flex-wrap items-center gap-3 bg-slate-900/40 border border-slate-800 rounded-xl px-4 py-3">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-slate-900/40 border border-slate-800 rounded-xl px-4 py-3">
                 <span className="text-xs text-slate-500 font-medium">Legend:</span>
                 {Object.entries(incidentTypeMeta).slice(0, 5).map(([key, meta]) => (
                   <div key={key} className="flex items-center gap-1.5">
@@ -185,6 +185,26 @@ export default function App() {
                     <span className="text-xs text-slate-400">{meta.label}</span>
                   </div>
                 ))}
+                <div className="w-px h-4 bg-slate-700" />
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-0.5 bg-green-500" />
+                  <span className="text-xs text-slate-400">Safe Route</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-0.5 border-t border-dashed border-yellow-500" />
+                  <span className="text-xs text-slate-400">Scenic Route</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[7px] border-l-transparent border-r-transparent border-b-red-500" />
+                  <span className="text-xs text-slate-400">Hazard Zone</span>
+                </div>
+                <div className="w-px h-4 bg-slate-700" />
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-sky-300">3D Landmarks</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-amber-300">Travel Icons</span>
+                </div>
               </div>
             </div>
 

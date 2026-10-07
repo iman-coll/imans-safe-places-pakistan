@@ -2,6 +2,8 @@ import { useState } from "react";
 import { cities, incidents, incidentTypeMeta, type City, type SafetyIncident } from "@/lib/data";
 import { roads, roadTypeMeta } from "@/lib/roads";
 import { subAreas, getSubAreaPosition, type SubArea } from "@/lib/subAreas";
+import { landmarks, travelIcons, routeLines, terrainFeatures } from "@/lib/landmarks";
+import { LandmarkGraphic, TravelIconGraphic, CompassRose, SunMoon } from "@/components/MapGraphics";
 
 type Props = {
   selectedCity: string | null;
@@ -13,11 +15,30 @@ type HoveredItem =
   | { type: "city"; data: City }
   | { type: "incident"; data: SafetyIncident }
   | { type: "subarea"; data: SubArea }
+  | { type: "landmark"; data: typeof landmarks[number] }
+  | { type: "travelicon"; data: typeof travelIcons[number] }
   | null;
+
+type LayerToggles = {
+  terrain: boolean;
+  landmarks: boolean;
+  travelIcons: boolean;
+  routeLines: boolean;
+  subAreas: boolean;
+  roads: boolean;
+};
 
 export default function PakistanMap({ selectedCity, onSelectCity, filter }: Props) {
   const [hovered, setHovered] = useState<HoveredItem>(null);
-  const [showSubAreas, setShowSubAreas] = useState(true);
+  const [layers, setLayers] = useState<LayerToggles>({
+    terrain: true,
+    landmarks: true,
+    travelIcons: true,
+    routeLines: true,
+    subAreas: true,
+    roads: true,
+  });
+  const [isNight, setIsNight] = useState(false);
 
   const cityIncidents = (cityName: string) =>
     incidents.filter((i) => i.city === cityName);
@@ -39,16 +60,13 @@ export default function PakistanMap({ selectedCity, onSelectCity, filter }: Prop
 
   const roadColor = (type: string) => roadTypeMeta[type as keyof typeof roadTypeMeta]?.color || "#475569";
 
-  // Get roads that belong to a specific city for drawing intra-city lines
   const cityRoads = (cityName: string) => roads.filter((r) => r.city === cityName);
 
-  // Draw a road line between two connected roads within the same city
   const getRoadLine = (road: (typeof roads)[number], connectedName: string) => {
     const connected = roads.find((r) => r.name === connectedName && r.city === road.city);
     if (!connected) return null;
     const city = cities.find((c) => c.name === road.city);
     if (!city) return null;
-    // Spread roads around the city center using a hash of their names
     const hash1 = road.name.charCodeAt(0) + road.name.charCodeAt(1);
     const hash2 = connected.name.charCodeAt(0) + connected.name.charCodeAt(1);
     return {
@@ -60,43 +78,84 @@ export default function PakistanMap({ selectedCity, onSelectCity, filter }: Prop
     };
   };
 
-  // Get tooltip position
   function getTooltipPos(item: NonNullable<HoveredItem>): { left: string; top: string } {
-    if (item.type === "city") {
-      return { left: `${item.data.x}%`, top: `${item.data.y}%` };
-    }
+    if (item.type === "city") return { left: `${item.data.x}%`, top: `${item.data.y}%` };
     if (item.type === "incident") {
       const city = cities.find((c) => c.name === item.data.city);
       return { left: `${city?.x ?? 50}%`, top: `${city?.y ?? 50}%` };
     }
-    // subarea
-    const pos = getSubAreaPosition(item.data);
-    return { left: `${pos.x}%`, top: `${pos.y}%` };
+    if (item.type === "subarea") {
+      const pos = getSubAreaPosition(item.data);
+      return { left: `${pos.x}%`, top: `${pos.y}%` };
+    }
+    if (item.type === "landmark") return { left: `${item.data.x}%`, top: `${item.data.y}%` };
+    if (item.type === "travelicon") return { left: `${item.data.x}%`, top: `${item.data.y}%` };
+    return { left: "50%", top: "50%" };
   }
 
   const tooltipPos = hovered ? getTooltipPos(hovered) : null;
 
+  const toggleLayer = (key: keyof LayerToggles) =>
+    setLayers((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const routeColor = (type: string) => {
+    if (type === "safe") return "#22c55e";
+    if (type === "scenic") return "#eab308";
+    return "#ef4444";
+  };
+
   return (
     <div className="relative w-full aspect-[4/5] max-w-[680px] mx-auto">
-      {/* Sub-area toggle */}
-      <div className="absolute top-2 right-2 z-10">
+      {/* Layer toggles */}
+      <div className="absolute top-2 right-2 z-10 flex flex-col gap-1 items-end">
         <button
-          onClick={() => setShowSubAreas(!showSubAreas)}
+          onClick={() => setIsNight(!isNight)}
           className={`text-[10px] px-2.5 py-1 rounded-full border transition-all ${
-            showSubAreas
-              ? "border-sky-500/40 bg-sky-500/15 text-sky-300"
-              : "border-slate-700 text-slate-400 bg-slate-900/60"
+            isNight
+              ? "border-indigo-400/40 bg-indigo-500/15 text-indigo-300"
+              : "border-amber-400/40 bg-amber-500/15 text-amber-300"
           }`}
         >
-          {showSubAreas ? "Sub-areas ON" : "Sub-areas OFF"}
+          {isNight ? "Moon" : "Sun"}
         </button>
+        <div className="bg-slate-900/80 backdrop-blur-sm rounded-lg border border-slate-700/50 p-1.5 flex flex-col gap-0.5">
+          {(Object.keys(layers) as (keyof LayerToggles)[]).map((key) => (
+            <button
+              key={key}
+              onClick={() => toggleLayer(key)}
+              className={`text-[9px] px-2 py-0.5 rounded text-left transition-all ${
+                layers[key]
+                  ? "text-sky-300 bg-sky-500/10"
+                  : "text-slate-500"
+              }`}
+            >
+              {layers[key] ? "●" : "○"} {key === "travelIcons" ? "Icons" : key === "routeLines" ? "Routes" : key.charAt(0).toUpperCase() + key.slice(1)}
+            </button>
+          ))}
+        </div>
       </div>
 
       <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full">
         <defs>
           <linearGradient id="mapGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#0f172a" />
-            <stop offset="100%" stopColor="#1e293b" />
+            <stop offset="0%" stopColor={isNight ? "#0a0f1e" : "#0f172a"} />
+            <stop offset="100%" stopColor={isNight ? "#111726" : "#1e293b"} />
+          </linearGradient>
+          <radialGradient id="mountainGrad" cx="50%" cy="100%" r="60%">
+            <stop offset="0%" stopColor="#334155" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#1e293b" stopOpacity="0.1" />
+          </radialGradient>
+          <radialGradient id="desertGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#92400e" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#92400e" stopOpacity="0.05" />
+          </radialGradient>
+          <radialGradient id="coastGrad" cx="20%" cy="80%" r="50%">
+            <stop offset="0%" stopColor="#0c4a6e" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#0c4a6e" stopOpacity="0.1" />
+          </radialGradient>
+          <linearGradient id="riverGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#0c4a6e" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#0c4a6e" stopOpacity="0.1" />
           </linearGradient>
           <filter id="glow">
             <feGaussianBlur stdDeviation="0.6" result="coloredBlur" />
@@ -107,6 +166,13 @@ export default function PakistanMap({ selectedCity, onSelectCity, filter }: Prop
           </filter>
           <filter id="subGlow">
             <feGaussianBlur stdDeviation="0.3" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <filter id="routeGlow">
+            <feGaussianBlur stdDeviation="0.4" result="coloredBlur" />
             <feMerge>
               <feMergeNode in="coloredBlur" />
               <feMergeNode in="SourceGraphic" />
@@ -123,6 +189,53 @@ export default function PakistanMap({ selectedCity, onSelectCity, filter }: Prop
           strokeLinejoin="round"
         />
 
+        {/* Terrain features */}
+        {layers.terrain && terrainFeatures.map((tf) => {
+          if (tf.type === "mountain") {
+            return (
+              <g key={tf.id}>
+                <ellipse cx={tf.x + tf.w / 2} cy={tf.y + tf.h / 2} rx={tf.w / 1.5} ry={tf.h / 2} fill="url(#mountainGrad)" />
+                {/* Mountain triangles */}
+                <path d={`M${tf.x},${tf.y + tf.h} L${tf.x + tf.w * 0.3},${tf.y} L${tf.x + tf.w * 0.6},${tf.y + tf.h} Z`} fill="#334155" opacity="0.3" />
+                <path d={`M${tf.x + tf.w * 0.4},${tf.y + tf.h} L${tf.x + tf.w * 0.7},${tf.y - 1} L${tf.x + tf.w},${tf.y + tf.h} Z`} fill="#3f4d63" opacity="0.35" />
+                <path d={`M${tf.x + tf.w * 0.2},${tf.y + tf.h} L${tf.x + tf.w * 0.5},${tf.y + 1} L${tf.x + tf.w * 0.8},${tf.y + tf.h} Z`} fill="#475569" opacity="0.25" />
+                {/* Snow caps */}
+                <path d={`M${tf.x + tf.w * 0.25},${tf.y + 1} L${tf.x + tf.w * 0.3},${tf.y} L${tf.x + tf.w * 0.35},${tf.y + 1} Z`} fill="#e2e8f0" opacity="0.5" />
+                <path d={`M${tf.x + tf.w * 0.65},${tf.y} L${tf.x + tf.w * 0.7},${tf.y - 1} L${tf.x + tf.w * 0.75},${tf.y} Z`} fill="#f8fafc" opacity="0.6" />
+                <text x={tf.x + tf.w / 2} y={tf.y + tf.h + 2.5} fill="#475569" fontSize="1.5" textAnchor="middle" className="font-sans select-none pointer-events-none">{tf.label}</text>
+              </g>
+            );
+          }
+          if (tf.type === "desert") {
+            return (
+              <g key={tf.id}>
+                <ellipse cx={tf.x + tf.w / 2} cy={tf.y + tf.h / 2} rx={tf.w / 1.5} ry={tf.h / 2} fill="url(#desertGrad)" />
+                <path d={`M${tf.x},${tf.y + tf.h * 0.7} Q${tf.x + tf.w * 0.3},${tf.y + tf.h * 0.5} ${tf.x + tf.w * 0.6},${tf.y + tf.h * 0.7} Q${tf.x + tf.w * 0.8},${tf.y + tf.h * 0.6} ${tf.x + tf.w},${tf.y + tf.h * 0.7}`} fill="none" stroke="#92400e" strokeWidth="0.15" opacity="0.3" />
+                <path d={`M${tf.x},${tf.y + tf.h * 0.9} Q${tf.x + tf.w * 0.3},${tf.y + tf.h * 0.75} ${tf.x + tf.w * 0.6},${tf.y + tf.h * 0.9} Q${tf.x + tf.w * 0.8},${tf.y + tf.h * 0.8} ${tf.x + tf.w},${tf.y + tf.h * 0.9}`} fill="none" stroke="#92400e" strokeWidth="0.12" opacity="0.2" />
+                <text x={tf.x + tf.w / 2} y={tf.y + tf.h / 2} fill="#78350f" fontSize="1.5" textAnchor="middle" className="font-sans select-none pointer-events-none opacity-50">{tf.label}</text>
+              </g>
+            );
+          }
+          if (tf.type === "coast") {
+            return (
+              <g key={tf.id}>
+                <ellipse cx={tf.x} cy={tf.y + tf.h / 2} rx={tf.w / 1.5} ry={tf.h / 2} fill="url(#coastGrad)" />
+                <path d={`M${tf.x + 1},${tf.y} Q${tf.x + tf.w * 0.3},${tf.y + tf.h * 0.3} ${tf.x + tf.w * 0.5},${tf.y + tf.h * 0.6} Q${tf.x + tf.w * 0.7},${tf.y + tf.h * 0.8} ${tf.x + tf.w * 0.9},${tf.y + tf.h}`} fill="none" stroke="#38bdf8" strokeWidth="0.2" opacity="0.4" />
+                <text x={tf.x + tf.w / 2} y={tf.y + tf.h + 2} fill="#0c4a6e" fontSize="1.5" textAnchor="middle" className="font-sans select-none pointer-events-none opacity-60">{tf.label}</text>
+              </g>
+            );
+          }
+          if (tf.type === "river") {
+            return (
+              <g key={tf.id}>
+                <path d={`M${tf.x},${tf.y} Q${tf.x + tf.w * 0.3},${tf.y - 2} ${tf.x + tf.w * 0.5},${tf.y} Q${tf.x + tf.w * 0.7},${tf.y + 3} ${tf.x + tf.w},${tf.y + 5}`} fill="none" stroke="url(#riverGrad)" strokeWidth="1.5" />
+                <text x={tf.x + tf.w / 2} y={tf.y - 1.5} fill="#0c4a6e" fontSize="1.2" textAnchor="middle" className="font-sans select-none pointer-events-none opacity-50">Indus</text>
+              </g>
+            );
+          }
+          return null;
+        })}
+
         {/* Province divider lines */}
         <line x1="45" y1="28" x2="48" y2="58" stroke="#334155" strokeWidth="0.25" strokeDasharray="1,1" />
         <line x1="48" y1="58" x2="30" y2="65" stroke="#334155" strokeWidth="0.25" strokeDasharray="1,1" />
@@ -136,7 +249,34 @@ export default function PakistanMap({ selectedCity, onSelectCity, filter }: Prop
         <text x="60" y="9" fill="#475569" fontSize="2" textAnchor="middle" className="font-sans select-none">GB</text>
         <text x="67" y="22" fill="#475569" fontSize="2" textAnchor="middle" className="font-sans select-none">AJK</text>
 
-        {/* Inter-city road network (highway connections) */}
+        {/* Route lines */}
+        {layers.routeLines && routeLines.map((rl) => (
+          <g key={rl.id}>
+            <line
+              x1={rl.fromX}
+              y1={rl.fromY}
+              x2={rl.toX}
+              y2={rl.toY}
+              stroke={routeColor(rl.type)}
+              strokeWidth="0.4"
+              strokeDasharray={rl.type === "scenic" ? "0.8,0.4" : rl.type === "hazard" ? "0.3,0.3" : undefined}
+              opacity={0.7}
+              filter="url(#routeGlow)"
+            >
+              {rl.type === "safe" && (
+                <animate attributeName="stroke-opacity" values="0.7;0.4;0.7" dur="3s" repeatCount="indefinite" />
+              )}
+            </line>
+            {rl.type === "hazard" && (
+              <g transform={`translate(${(rl.fromX + rl.toX) / 2},${(rl.fromY + rl.toY) / 2})`}>
+                <path d="M0,-0.8 L0.7,0.4 L-0.7,0.4 Z" fill="#ef4444" opacity="0.7" />
+                <text x="0" y="0.3" fill="#fff" fontSize="0.5" textAnchor="middle" className="font-sans select-none pointer-events-none">!</text>
+              </g>
+            )}
+          </g>
+        ))}
+
+        {/* Inter-city highway connections */}
         {cities.slice(0, -1).map((city, i) => {
           const next = cities[(i + 1) % cities.length];
           return (
@@ -147,15 +287,15 @@ export default function PakistanMap({ selectedCity, onSelectCity, filter }: Prop
               x2={next.x}
               y2={next.y}
               stroke="#1e3a5f"
-              strokeWidth="0.35"
+              strokeWidth="0.3"
               strokeDasharray="0.5,0.5"
-              opacity={0.6}
+              opacity={0.4}
             />
           );
         })}
 
-        {/* Intra-city road sketches — draw lines for connected roads within each city */}
-        {cities.map((city) => {
+        {/* Intra-city road sketches */}
+        {layers.roads && cities.map((city) => {
           const cityRds = cityRoads(city.name);
           const lines: React.ReactElement[] = [];
           const drawn = new Set<string>();
@@ -175,7 +315,7 @@ export default function PakistanMap({ selectedCity, onSelectCity, filter }: Prop
                   y2={lineData.y2}
                   stroke={roadColor(road.type)}
                   strokeWidth="0.2"
-                  opacity={0.35}
+                  opacity={0.3}
                 />
               );
             });
@@ -183,8 +323,32 @@ export default function PakistanMap({ selectedCity, onSelectCity, filter }: Prop
           return <g key={`city-rds-${city.id}`}>{lines}</g>;
         })}
 
+        {/* 3D Landmarks */}
+        {layers.landmarks && landmarks.map((lm) => (
+          <g
+            key={lm.id}
+            className="cursor-pointer"
+            onMouseEnter={() => setHovered({ type: "landmark", data: lm })}
+            onMouseLeave={() => setHovered(null)}
+          >
+            <LandmarkGraphic type={lm.type} x={lm.x} y={lm.y} scale={1.2} />
+          </g>
+        ))}
+
+        {/* Travel icons */}
+        {layers.travelIcons && travelIcons.map((ti) => (
+          <g
+            key={ti.id}
+            className="cursor-pointer"
+            onMouseEnter={() => setHovered({ type: "travelicon", data: ti })}
+            onMouseLeave={() => setHovered(null)}
+          >
+            <TravelIconGraphic type={ti.type} x={ti.x} y={ti.y} scale={1} />
+          </g>
+        ))}
+
         {/* Sub-area markers */}
-        {showSubAreas &&
+        {layers.subAreas &&
           subAreas.filter(subAreaMatchesFilter).map((sa) => {
             const pos = getSubAreaPosition(sa);
             const color =
@@ -300,6 +464,12 @@ export default function PakistanMap({ selectedCity, onSelectCity, filter }: Prop
             </g>
           );
         })}
+
+        {/* Compass rose */}
+        <CompassRose x={88} y={90} />
+
+        {/* Sun / Moon */}
+        <SunMoon x={88} y={8} isNight={isNight} />
       </svg>
 
       {/* Hover tooltip */}
@@ -353,6 +523,19 @@ export default function PakistanMap({ selectedCity, onSelectCity, filter }: Prop
                 <span className="text-slate-300">Safety: {hovered.data.safetyScore}/100</span>
               </div>
               <div className="text-slate-500 mt-1 text-[10px] leading-tight">{hovered.data.description}</div>
+            </>
+          )}
+          {hovered.type === "landmark" && (
+            <>
+              <div className="font-semibold text-sky-300">{hovered.data.name}</div>
+              <div className="text-slate-400 mt-0.5">{hovered.data.urduName} · {hovered.data.city}</div>
+              <div className="text-slate-500 mt-1 text-[10px] leading-tight">{hovered.data.description}</div>
+            </>
+          )}
+          {hovered.type === "travelicon" && (
+            <>
+              <div className="font-semibold text-amber-300">{hovered.data.name}</div>
+              <div className="text-slate-400 mt-0.5">{hovered.data.city}</div>
             </>
           )}
         </div>
